@@ -7,7 +7,6 @@ MIN_GENESET_SIZE <<- 5
 setwd(WORK_DIR)
 
 
-
 setwdNew("check-p1314-EBO6-Muscle-20151125-run1")
 datasetFile = "/srv/gstore/projects/p1314/Count_FeatureCounts_8878_2015-11-25--07-44-26/muscle-dataset.tsv"
 countDs = EzDataset(file=datasetFile)
