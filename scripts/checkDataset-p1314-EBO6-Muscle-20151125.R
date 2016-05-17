@@ -38,6 +38,11 @@ geneSymbols = countRd$seqAnno$hgnc_symbol
 geneListFiles = list.files(ENRICHR_GENELIST_DIRECTORY, pattern=".gmt$", full.names = TRUE)
 names(geneListFiles) = sub(".gmt$", "", basename(geneListFiles))
 
+dataset = countRd$dataset
+
+
+screenAllSamples(exprCounts, exprConditions, geneListFiles)
+
 
 ## prepare the data ------------
 replicateGroups = split(countDs$getNames(), countDs$getColumn(replicateGroupingVariable))
@@ -45,6 +50,8 @@ repSamples = replicateGroups[[1]] ## repeat for each set of replicates
 countDataUse = selectSamples(countRd, repSamples)
 selectedSample = repSamples[1] ## repeat for each sample
 controlSamples = setdiff(repSamples, selectedSample)
+
+exprCounts = countDataUse$counts
 
 ## get gene set information ready ----
 # repeat for each gene list file
@@ -58,13 +65,13 @@ geneSetIndices = lapply(geneSets, function(gn){na.omit(match(gn, geneSymbols))})
 require(edgeR)
 repFactor = repSamples %in% selectedSample
 design = model.matrix(~ repFactor)
-mroastResult = mroast(countDataUse$counts, index=geneSetIndices, design = design)
+mroastResult = mroast(log2(exprCounts + param$bgExpression), index=geneSetIndices, design = design)
 head(mroastResult[order(mroastResult$PValue.Mixed), ])
 
 
 #### analysis using camera
 require(edgeR)
-cameraResult = camera(countDataUse$counts, index=geneSetIndices, design = design)
+cameraResult = camera(log2(exprCounts + param$bgExpression), index=geneSetIndices, design = design)
 head(cameraResult[order(cameraResult$PValue), ])
 
 ## analysis using clusterProfiler
@@ -76,9 +83,11 @@ names(scores) = geneSymbols
 sortedScores = sort(scores)
 term2Gene = ezFrame(term=rep(names(geneSets), sapply(geneSets, length)), gene=unlist(geneSets))
 
+## Fisher's Exact Test:
 enricherResult = enricher(names(sortedScores)[1:50], minGSSize = MIN_GENESET_SIZE, TERM2GENE=term2Gene, pvalueCutoff = 1 )
 head(summary(enricherResult))
 
+## threshold-free analysis
 gseaResult = GSEA(geneList = sortedScores, minGSSize = 10, TERM2GENE=term2Gene[term2Gene$gene %in% names(sortedScores), ], 
                   verbose = TRUE, pvalueCutoff = 1, nPerm = 1000  )
 ## WARNING this function will use all cores on your system
